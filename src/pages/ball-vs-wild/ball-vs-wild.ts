@@ -8,7 +8,10 @@ import { EnemyProducer, ItemProducer } from "../../models/enemy.producer";
 import { ExtendedMath } from  "../../models/extendedmath";
 import { PauseButton } from "../../models/buttons";
 import { Dimensions, SpriteDimensions } from "../../models/dimensions";
+import { EnemyManager } from "../../models/enemy.manager";
+import { DifficultyChooser } from "../../models/difficulty.chooser";
 declare var admob;
+
 @Component({
   selector: 'ball-vs-wild',
   templateUrl: 'ball-vs-wild.html'
@@ -62,8 +65,7 @@ export class BallVsWildPage {
   projectiles: ShapeUnit[] = [];
   items: ImageUnit[] = [];
   enemies: Enemy[] = [];
-  enemyGenerators: EnemyProducer[] = [];
-  itemGenerators: ItemProducer[] = [];
+  enemyManager: EnemyManager;
 
   spritesImg: HTMLImageElement;
   canvasContext: CanvasRenderingContext2D = null;
@@ -176,18 +178,7 @@ export class BallVsWildPage {
   }
 
   private updateFrame(dtMilliseconds: number) {
-    for (var i = 0; i < this.enemyGenerators.length; i++){
-      let enemy = <Enemy>this.enemyGenerators[i].tick(dtMilliseconds);
-      if (enemy != null){
-        this.enemies.push(enemy);
-      }
-    }
-    for (var i = 0; i < this.itemGenerators.length; i++){
-      let item = <ImageUnit>this.itemGenerators[i].tick(dtMilliseconds);
-      if (item != null){
-        this.items.push(item);
-      }
-    }
+    this.enemyManager.update(dtMilliseconds);
 
     this.projectiles = this.projectiles.filter(function(proj){
       return proj.isAlive;
@@ -226,11 +217,12 @@ export class BallVsWildPage {
         if (this.healthBar.healthPoints === 1){
           this.updateHighScore();
           if (this.millisUntilNextAd <= 0){
-            admob.showInterstitialAd();
+            //admob.showInterstitialAd();
             this.millisUntilNextAd = BallVsWildPage.MILLIS_BETWEEN_ADS;
           }
           this.isContinueEnabled = !this.isContinueEnabled;
         }
+        this.enemyManager.onHitByEnemy();
         this.healthBar.takeHealth();
         enemy.isAlive = false;
       }
@@ -334,6 +326,7 @@ export class BallVsWildPage {
     this.powerupSelector.powerupBars[this.powerupSelector.selectedIndex].addPoints(enemy.value);
     enemy.isAlive = false;
     projectile.isAlive = false;
+    // this.enemyManager.onEnemyStrike();
   }
   private strikeItem(item: ImageUnit, projectile: ShapeUnit) {
     // TODO: refactor to be extensible for other item types
@@ -341,6 +334,7 @@ export class BallVsWildPage {
     this.healthBar.giveHealth();
     item.isAlive = false;
     projectile.isAlive = false;
+    // this.enemyManager.onItemStrike();
   }
 
   onDragGesture(event){
@@ -360,8 +354,10 @@ export class BallVsWildPage {
       this.powerupSelector.clearBars();
       this.projectiles = [];
       this.items = [];
-      this.enemies = [];
       this.score = 0;
+      this.enemies = [];
+
+      // this.enemyManager.onDeath();
     }
     else if (this.maxVelocity > 0) {
       let velocityScale = BallVsWildPage.MIN_SHOT_VELOCITY / Math.abs(this.maxVelocity);
@@ -371,7 +367,9 @@ export class BallVsWildPage {
         size, BallVsWildPage.PROJECTILE_COLOR);
       nextProjectile.velocityX = (velocityScale > 1) ? (this.maxVelocityX * velocityScale) : this.maxVelocityX;
       nextProjectile.velocityY = (velocityScale > 1) ? (this.maxVelocityY * velocityScale) : this.maxVelocityY;
+
       this.projectiles.push(nextProjectile);
+      // this.enemyManager.onShoot();
 
       this.maxVelocity = 0;
     }
@@ -403,73 +401,73 @@ export class BallVsWildPage {
     return Math.max(40, this.canvasContext.canvas.width * 0.16);
   }
 
-initAds() {
-  if (admob) {
-    var adPublisherIds = {
-      // ios : {
-      //   banner : "ca-app-pub-XXXXXXXXXXXXXXXX/BBBBBBBBBB",
-      //   interstitial : "ca-app-pub-XXXXXXXXXXXXXXXX/IIIIIIIIII"
-      // },
-      android : {
-        banner : "ca-app-pub-3035178355763743~7102114115",
-        interstitial: "ca-app-pub-3035178355763743/"
-      }
-    };
+// initAds() {
+//   if (admob) {
+//     var adPublisherIds = {
+//       // ios : {
+//       //   banner : "ca-app-pub-XXXXXXXXXXXXXXXX/BBBBBBBBBB",
+//       //   interstitial : "ca-app-pub-XXXXXXXXXXXXXXXX/IIIIIIIIII"
+//       // },
+//       android : {
+//         banner : "ca-app-pub-3035178355763743~7102114115",
+//         interstitial: "ca-app-pub-3035178355763743/"
+//       }
+//     };
 
-    var admobid = (/(android)/i.test(navigator.userAgent)) ? adPublisherIds.android : null/*adPublisherIds.ios*/;
+//     var admobid = (/(android)/i.test(navigator.userAgent)) ? adPublisherIds.android : null/*adPublisherIds.ios*/;
 
-    admob.setOptions({
-      publisherId:          admobid.banner,
-      interstitialAdId:     admobid.interstitial,
-      autoShowInterstitial: false,
-      isTesting: true
-    });
+//     admob.setOptions({
+//       publisherId:          admobid.banner,
+//       interstitialAdId:     admobid.interstitial,
+//       autoShowInterstitial: false,
+//       isTesting: true
+//     });
 
-    this.registerAdEvents();
+//     this.registerAdEvents();
 
-  } else {
-    alert('AdMobAds plugin not ready');
-  }
-}
+//   } else {
+//     alert('AdMobAds plugin not ready');
+//   }
+// }
 
-onAdLoaded(e) {
-  if (true) {
-    if (e.adType === admob.AD_TYPE.INTERSTITIAL) {
-      this.isAdsLoaded = true;
-      this.isContinueEnabled = true;
-    }
-  }
-}
+// onAdLoaded(e) {
+//   if (true) {
+//     if (e.adType === admob.AD_TYPE.INTERSTITIAL) {
+//       this.isAdsLoaded = true;
+//       this.isContinueEnabled = true;
+//     }
+//   }
+// }
 
-onAdClosed(e) {
-  if (true) {
-    if (e.adType === admob.AD_TYPE.INTERSTITIAL) {
-      admob.requestInterstitialAd();
-    }
-  }
-}
+// onAdClosed(e) {
+//   if (true) {
+//     if (e.adType === admob.AD_TYPE.INTERSTITIAL) {
+//       admob.requestInterstitialAd();
+//     }
+//   }
+// }
 
-onPause() {
-  if (true) {
-    admob.destroyBannerView();
-  }
-}
+// onPause() {
+//   if (true) {
+//     admob.destroyBannerView();
+//   }
+// }
 
-onResume() {
-  if (!true) {
-    setTimeout(admob.createBannerView, 1);
-    setTimeout(admob.requestInterstitialAd, 1);
-  }
-}
+// onResume() {
+//   if (!true) {
+//     setTimeout(admob.createBannerView, 1);
+//     setTimeout(admob.requestInterstitialAd, 1);
+//   }
+// }
 
 // optional, in case respond to events
-registerAdEvents() {
-  document.addEventListener(admob.events.onAdLoaded, this.onAdLoaded);
-  document.addEventListener(admob.events.onAdClosed, this.onAdClosed);
+// registerAdEvents() {
+//   document.addEventListener(admob.events.onAdLoaded, this.onAdLoaded);
+//   document.addEventListener(admob.events.onAdClosed, this.onAdClosed);
 
-  document.addEventListener("pause", this.onPause, false);
-  document.addEventListener("resume", this.onResume, false);
-}
+//   document.addEventListener("pause", this.onPause, false);
+//   document.addEventListener("resume", this.onResume, false);
+// }
 
   ionViewDidEnter() {
   	let canvas = <HTMLCanvasElement>document.getElementById("mainCanvas");
@@ -506,18 +504,12 @@ registerAdEvents() {
     this.hero = new ShapeUnit(heroShape, centerX, centerY, size, heroColor);
 
     let page = BallVsWildPage;
-    this.enemyGenerators.push(new EnemyProducer(10, Math.max(20, this.canvasContext.canvas.width * 0.15), 100, 5000, this.hero,
-      this.spritesImg, page.MEDIUM_BEE["leftDimensions"], page.MEDIUM_BEE["rightDimensions"], this.canvasContext, page.MEDIUM_BEE["name"]));
-    this.enemyGenerators.push(new EnemyProducer(30, Math.max(40, this.canvasContext.canvas.width * 0.22), 70, 7500, this.hero,
-      this.spritesImg, page.LARGE_BEE["leftDimensions"], page.LARGE_BEE["rightDimensions"], this.canvasContext, page.LARGE_BEE["name"]));
-    this.enemyGenerators.push(new EnemyProducer(25, Math.max(10, this.canvasContext.canvas.width * 0.09), 175, 8000, this.hero,
-      this.spritesImg, page.SMALL_BEE["leftDimensions"], page.SMALL_BEE["rightDimensions"], this.canvasContext, page.SMALL_BEE["name"]));
-    this.itemGenerators.push(new ItemProducer(this.spritesImg, page.HEALTH_ITEM["srcDimensions"], 30, 250, 10000, this.canvasContext));
 
     let pauseButtonLocation = new Dimensions(10, 10 + 60, this.buttonSize(), this.buttonSize());
     this.pauseButton = new PauseButton(this.spritesImg, page.PAUSE_IMG_DIMENSIONS, page.PLAY_IMG_DIMENSIONS, pauseButtonLocation);
 
-    this.initAds();
-    admob.requestInterstitialAd();
+    this.enemyManager = new EnemyManager(this);
+    // this.initAds();
+    // admob.requestInterstitialAd();
   }
 }
