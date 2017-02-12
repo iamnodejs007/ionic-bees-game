@@ -3,8 +3,10 @@
   	(touchend)="onTouchEnd($event)"
     (panEvent)="onDragGesture($event)"
     (tapEvent)="onSingleTap($event)"
-    (doubleTapEvent)="onDoubleTap($event)">
+    (doubleTapEvent)="onDoubleTap($event)"
+    (tripleTapEvent)="onTripleTap($event)">
   </canvas>
+  <a id="rickroll" class="item" style="display: none;" href="#" onclick="window.open('https://www.youtube.com/watch?v=dQw4w9WgXcQ', '_system', 'location=yes'); return false;"></a>
   <div id="usernameField" class="gameInputContainer">
     <div class="scoreLabelContainer">
       <span class="gameModalHeader">

@@ -9,6 +9,7 @@ import { ExtendedMath } from  "../../models/extendedmath";
 import { PauseButton } from "../../models/buttons";
 import { Dimensions, SpriteDimensions } from "../../models/dimensions";
 import { GraphicArtist } from "../../models/graphic.artist";
+import { RickRollManager } from "../../models/rickroll.manager";
 
 declare var admob;
 
@@ -99,6 +100,11 @@ export class BallVsWildPage {
 
   isEnemiesGoingBallistic: boolean = false;
   millisUntilDoom: number = 0;
+
+  rickRoll: RickRollManager = new RickRollManager();
+  THREE: ShapeUnit = null;
+  TWO: ShapeUnit = null;
+  RICKROLL: ShapeUnit = null;
 
   static readonly DAILY_LEADERBOARD_NAME: string = "today";
   static readonly ALL_TIME_LEADERBOARD_NAME: string = "allTime";
@@ -235,6 +241,16 @@ export class BallVsWildPage {
     }
     this.healthBar.draw(this.canvasContext);
 
+    if (this.TWO) {
+      this.TWO.draw(this.canvasContext);
+    }
+    if (this.THREE) {
+      this.THREE.draw(this.canvasContext);
+    }
+    if (this.RICKROLL) {
+      this.RICKROLL.draw(this.canvasContext);
+    }
+
     let ctx = this.canvasContext;
     let scoreX = ctx.canvas.width - 15;
 
@@ -265,6 +281,7 @@ export class BallVsWildPage {
   }
 
   private updateFrame(dtMilliseconds: number) {
+    this.rickRoll.update(dtMilliseconds);
     this.millisSinceLastShot += dtMilliseconds;
 
     this.millisUntilDoom -= dtMilliseconds;
@@ -592,8 +609,36 @@ export class BallVsWildPage {
     let selectedPowerup = this.powerupSelector.powerupBars[this.powerupSelector.selectedIndex];
     if (selectedPowerup.isPowerupEnabled()) {
       selectedPowerup.expend();
+    } else {
+      this.tapRick(2);
     }
   }
+  onTripleTap(event) {
+    this.tapRick(3);
+  }
+
+  private tapRick(times: number) {
+    if (this.enemyGenerators[0].totalGameTimeMillis < 10000) {
+      let isRickRolled = this.rickRoll.tap(times);
+      if (this.isPattern([3])) {
+        this.THREE = new ShapeUnit(new Circle(this.canvasContext), (this.canvasContext.canvas.width * 0.25), (this.canvasContext.canvas.height * 0.75), 15, Color.fromHexValue("#FF0000"));
+      } else if (this.isPattern([3, 2])) {
+        this.TWO = new ShapeUnit(new Circle(this.canvasContext), (this.canvasContext.canvas.width * 0.5), (this.canvasContext.canvas.height * 0.75), 15, Color.fromHexValue("#FF0000"));
+      } else if (this.isPattern([3, 2, 3])) {
+        this.RICKROLL = new ShapeUnit(new Circle(this.canvasContext), (this.canvasContext.canvas.width * 0.75), (this.canvasContext.canvas.height * 0.75), 15, Color.fromHexValue("#FF0000"));
+      }
+      //if (times === 3){alert("hell yes");}
+      if (isRickRolled) {
+        //console.log("let the good times roll");
+        ////alert("rick");
+        (<HTMLLinkElement>document.getElementById("rickroll")).click();
+      }
+    }
+  }
+  private isPattern(pattern: number[]): boolean {
+    return (JSON.stringify(this.rickRoll.pattern) === JSON.stringify(pattern));
+  }
+
   onSingleTap(event) {
     let centerX = event.center.x;
     let centerY = event.center.y;

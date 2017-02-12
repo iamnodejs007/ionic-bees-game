@@ -10,6 +10,7 @@ export abstract class PressDirective implements OnInit, OnDestroy {
   el: HTMLElement;
   directiveGesture: Gesture;
   doubleTapGesture: Gesture;
+  tripleTapGesture: Gesture;
   static eventName: string = null;
 
   @Output()
@@ -20,6 +21,8 @@ export abstract class PressDirective implements OnInit, OnDestroy {
   tapEvent: EventEmitter<any> = new EventEmitter();
   @Output()
   doubleTapEvent: EventEmitter<any> = new EventEmitter();
+  @Output()
+  tripleTapEvent: EventEmitter<any> = new EventEmitter();
 
   constructor(el: ElementRef) {
     this.el = el.nativeElement;
@@ -49,6 +52,16 @@ export abstract class PressDirective implements OnInit, OnDestroy {
     this.doubleTapGesture.listen();
     this.doubleTapGesture.on('tap', e => {
       this.doubleTapEvent.emit(e);
+    });
+
+    this.tripleTapGesture = new Gesture(this.el, {
+      recognizers: [
+        [Hammer.Tap, {taps: 3}]
+      ]
+    });
+    this.tripleTapGesture.listen();
+    this.tripleTapGesture.on('tap', e => {
+      this.tripleTapEvent.emit(e);
     });
   }
 
