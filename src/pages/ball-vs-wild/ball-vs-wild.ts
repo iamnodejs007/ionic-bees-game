@@ -600,7 +600,7 @@ export class BallVsWildPage {
   }
 
   onTouchStart(event) {
-   // console.log();
+   console.log("wtf");
     let self = this;
     this.weaponFireIntervalID = setInterval(function(){
       self.fireWeapon();
