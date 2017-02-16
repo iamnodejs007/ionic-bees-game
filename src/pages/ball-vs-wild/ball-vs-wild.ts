@@ -112,6 +112,7 @@ export class BallVsWildPage {
   factsTaken: string[] = [];
   factIndicesTaken: number[] = [];
   fact: string = null;
+  weaponFireIntervalID: number = -1;
 
   static readonly DAILY_LEADERBOARD_NAME: string = "today";
   static readonly ALL_TIME_LEADERBOARD_NAME: string = "allTime";
@@ -580,18 +581,39 @@ export class BallVsWildPage {
     this.renderer.removeBackgroundObject(projectile);
   }
 
-  onDragGesture(event){
-    let xVelSquared = event.velocityX * event.velocityX;
-    let yVelSquared = event.velocityY * event.velocityY;
-    let currentVelocity = Math.sqrt(xVelSquared + yVelSquared);
+  centerX: number = 0;
+  centerY: number = 0;
 
-    if (currentVelocity > this.maxVelocity){
-      this.maxVelocity = currentVelocity;
-      this.maxVelocityX = event.velocityX;
-      this.maxVelocityY = event.velocityY;
-    }
+  onDragGesture(event){
+    console.log("dragging")
+    // let xVelSquared = event.velocityX * event.velocityX;
+    // let yVelSquared = event.velocityY * event.velocityY;
+    // let currentVelocity = Math.sqrt(xVelSquared + yVelSquared);
+
+    // if (currentVelocity > this.maxVelocity){
+    //   this.maxVelocity = currentVelocity;
+    //   this.maxVelocityX = event.velocityX;
+    //   this.maxVelocityY = event.velocityY;
+    // }
+    this.centerX = event.center.x;
+    this.centerY = event.center.y;
+  }
+
+  onTouchStart(event) {
+   // console.log();
+    let self = this;
+    this.weaponFireIntervalID = setInterval(function(){
+      self.fireWeapon();
+    }, 200);
+    this.centerX = event.center.x;
+    this.centerY = event.center.y;
+    this.fireWeapon();
   }
   onTouchEnd(event) {
+    this.centerX = this.hero.positionX;
+    this.centerY = this.hero.positionY;
+    clearInterval(this.weaponFireIntervalID);
+
     if (this.isHighScoresDisplayed && !this.isHighScore){
       this.healthBar.healthPoints = HealthBar.DEFAULT_MAX_HP;
       this.powerupSelector.clearBars();
@@ -627,6 +649,30 @@ export class BallVsWildPage {
       this.renderer.redrawForeground();
     }
   }
+
+  private fireWeapon(){
+    console.log("firing")
+    //if (this.millisSinceLastShot >= 200) {
+        let distance = ExtendedMath.distance(this.hero.positionX, this.hero.positionY, centerX, centerY);
+        let velocityScale = BallVsWildPage.MIN_SHOT_VELOCITY / distance;
+        let distanceX = velocityScale * (this.centerX - this.hero.positionX);
+        let distanceY = velocityScale * (this.centerY - this.hero.positionY);
+
+        let size = Math.max(10, this.renderer.bgContext.canvas.width * 0.04);
+        let nextProjectile = new ShapeUnit(this.projectileShape, this.hero.positionX, this.hero.positionY,
+          size, BallVsWildPage.PROJECTILE_COLOR);
+        nextProjectile.velocityX = distanceX; // (velocityScale > 1) ? (distanceX * velocityScale) : this.maxVelocityX;
+        nextProjectile.velocityY = distanceY; // (velocityScale > 1) ? (distanceY * velocityScale) : this.maxVelocityY;
+        this.projectiles.push(nextProjectile);
+        this.renderer.addBackgroundObject(nextProjectile);
+        this.effectsMgr.startTouchEffect(this.centerX, this.centerY);
+
+        this.maxVelocity = 0;
+        this.millisSinceLastShot = 0;
+      //}
+  }
+
+  // onSingleTap (former)
   onSingleTap(event) {
     if (this.millisSinceTap >= 200) {
       this.millisSinceTap = 0;
@@ -652,24 +698,6 @@ export class BallVsWildPage {
         if (this.pauseButton.isPaused()) {
           this.rickRoller.onPaused();
         }
-      }
-      if (!isButtonPressed && this.millisSinceLastShot >= 200) {
-        let distance = ExtendedMath.distance(this.hero.positionX, this.hero.positionY, centerX, centerY);
-        let velocityScale = BallVsWildPage.MIN_SHOT_VELOCITY / distance;
-        let distanceX = velocityScale * (centerX - this.hero.positionX);
-        let distanceY = velocityScale * (centerY - this.hero.positionY);
-
-        let size = Math.max(10, this.renderer.bgContext.canvas.width * 0.04);
-        let nextProjectile = new ShapeUnit(this.projectileShape, this.hero.positionX, this.hero.positionY,
-          size, BallVsWildPage.PROJECTILE_COLOR);
-        nextProjectile.velocityX = distanceX; // (velocityScale > 1) ? (distanceX * velocityScale) : this.maxVelocityX;
-        nextProjectile.velocityY = distanceY; // (velocityScale > 1) ? (distanceY * velocityScale) : this.maxVelocityY;
-        this.projectiles.push(nextProjectile);
-        this.renderer.addBackgroundObject(nextProjectile);
-        this.effectsMgr.startTouchEffect(centerX, centerY);
-
-        this.maxVelocity = 0;
-        this.millisSinceLastShot = 0;
       }
     }
   }
@@ -697,7 +725,7 @@ export class BallVsWildPage {
         publisherId:          admobid.banner,
         interstitialAdId:     admobid.interstitial,
         autoShowInterstitial: false,
-        isTesting: false
+        isTesting: true
       });
 
       this.registerAdEvents();
@@ -794,13 +822,13 @@ export class BallVsWildPage {
     this.renderer.addForegroundObject(this.powerupSelector);
 
     let size = this.renderer.fgContext.canvas.width * 0.13;
-    let centerX = this.renderer.fgContext.canvas.width / 2;
-    let centerY = this.renderer.fgContext.canvas.height / 2;
-    this.heroTopLeftX = centerX - (size / 2);
-    this.heroTopLeftY = centerY - (size / 2);
+    let positionX = this.renderer.fgContext.canvas.width / 2;
+    let positionY = this.renderer.fgContext.canvas.height / 2;
+    this.heroTopLeftX = positionX - (size / 2);
+    this.heroTopLeftY = positionY - (size / 2);
     let heroColor = Color.fromHexValue("#0200FF");
     let heroShape = new Circle(this.renderer.fgContext);
-    this.hero = new ShapeUnit(heroShape, centerX, centerY, size, heroColor);
+    this.hero = new ShapeUnit(heroShape, positionX, positionY, size, heroColor);
     this.renderer.addForegroundObject(this.hero);
 
     this.healthBar = new HealthBar(15, 15);
